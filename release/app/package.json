@@ -1,6 +1,6 @@
 {
   "name": "unmar",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A utility to unmarshall DynamoDB JSON",
   "main": "./dist/main/main.js",
   "author": {

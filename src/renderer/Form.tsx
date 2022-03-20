@@ -1,27 +1,33 @@
 import { ContentCopy, ContentPasteGo, FormatClear } from '@mui/icons-material';
 import {
   AppBar,
-  Container,
   IconButton,
   IconButtonProps,
   Toolbar,
   Tooltip,
   useMediaQuery,
 } from '@mui/material';
-import { styled } from '@mui/system';
+import { styled, useTheme } from '@mui/system';
 import 'ace-builds/src-noconflict/ace';
 import 'ace-builds/src-noconflict/mode-json';
 import 'ace-builds/src-noconflict/theme-github';
 import 'ace-builds/src-noconflict/theme-twilight';
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren, useEffect, useRef, useState } from 'react';
 import AceEditor from 'react-ace';
+import { useResizeDetector } from 'react-resize-detector';
 import { unmar } from './util';
 
-const FullFrame = styled(Container)({
-  width: '100%',
-  height: '100%',
+type ToolbarMixin = { toolbar: { minHeight: number } };
+
+const FullFrame = styled('div')({
   margin: '0 !important',
   padding: '0 !important',
+  resize: 'both',
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
 });
 
 const Button = styled(
@@ -45,19 +51,31 @@ const Button = styled(
 
 export default function Form() {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-  const [jsonString, setJsonString] = useState('');
+  const editorRef = useRef<AceEditor>(null);
+  const theme = useTheme();
+
+  const { width, height, ref } = useResizeDetector({
+    handleWidth: true,
+    handleHeight: true,
+  });
+  const [jsonString, setJsonString] = useState(
+    localStorage.getItem('jsonString') ?? ''
+  );
+  useEffect(() => localStorage.setItem('jsonString', jsonString), [jsonString]);
+  useEffect(() => {
+    editorRef.current && editorRef.current.editor.resize();
+  }, [width, height]);
 
   const setunMarred = (value: string) => setJsonString(unmar(value));
-
   const handleClear = () => setJsonString('');
+  const handlePaste = () => navigator.clipboard.readText().then(setunMarred);
   const handleCopy = () =>
     jsonString && navigator.clipboard.writeText(jsonString);
-  const handlePaste = () => navigator.clipboard.readText().then(setunMarred);
 
   return (
-    <FullFrame>
-      <AppBar position="static">
-        <Toolbar>
+    <FullFrame ref={ref}>
+      <AppBar position="fixed" color="default" variant="outlined">
+        <Toolbar variant="dense">
           <Button onClick={handleClear} disabled={!jsonString} title="Clear">
             <FormatClear />
           </Button>
@@ -69,13 +87,23 @@ export default function Form() {
           </Button>
         </Toolbar>
       </AppBar>
+      <Toolbar variant="dense" />
       <AceEditor
+        ref={editorRef}
         mode="json"
         theme={prefersDarkMode ? 'twilight' : 'github'}
         onChange={setunMarred}
-        style={{ width: 'auto' }}
         value={jsonString}
         editorProps={{ $blockScrolling: true }}
+        style={{
+          ...(height && (theme.mixins as ToolbarMixin).toolbar.minHeight
+            ? {
+                height:
+                  height - (theme.mixins as ToolbarMixin).toolbar.minHeight + 8,
+              }
+            : {}),
+          width,
+        }}
       />
     </FullFrame>
   );
